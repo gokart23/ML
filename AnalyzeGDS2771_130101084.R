@@ -15,7 +15,8 @@ library(GEOquery)
 
 # Add other libraries that you might need below this line
 
-library(glmnet)
+library(glmnet) #for models + regularization
+library(mice) #for data imputation
 
 # 2. Read data and convert to dataframe. Comment to save time after first run of the program in an R session
 # 2.1. Once download data from ftp://ftp.ncbi.nlm.nih.gov/geo/datasets/GDS2nnn/GDS2771/soft/GDS2771.soft.gz
@@ -51,5 +52,28 @@ df[seq(2, length(colnames(df)))] <- sapply(df[seq(2, length(colnames(df)))], as.
 df <- df[, colSums(is.na(df)) < nrow(df)]
 # Step 2: Impute values for all genes which contain partial missing values (using mean)
 # Note: This dataset doesn't require this step, as after step 1, all na values disappear. Method kept for completeness
-df <- if (sum(is.na(df)) > 0) mice(df, method = "mean") else df
+df <- if (sum(is.na(df)) > 0) mice(df, method = "mean") else df # Final number of genes = 22216
 
+#Dividing dataset into testing and training sets
+SPLIT.PERCENTAGE = 0.75 # 75-25 training-to-testing ratio
+train.size = floor(nrow(df)*SPLIT.PERCENTAGE)
+set.seed(101) #to ensure reproducibility
+train.idx <- sample(nrow(df), size = train.size)
+train <- df[train.idx, ] #The training dataset
+test <- df[-train.idx, ] #The testing dataset
+
+
+#Experiment 1: Linear regression with Lasso
+
+
+#Experiment 2: Linear regression with Ridge
+
+#Experiment 3: Choosing value of mixing parameter(alpha) of elasticnet using cross-validation
+
+#Experiment 4: Logistic regression with Lasso
+
+#Experiment 5: Logistic regression with Ridge
+
+#Experiment 6: Choosing value of mixing parameter(alpha) of elasticnet using cross-validation
+
+#
