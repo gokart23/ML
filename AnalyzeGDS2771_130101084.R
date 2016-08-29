@@ -46,3 +46,10 @@ df <- as.data.frame(data2771)
 df <- subset(df, df[,1] != "3") # Remove suspected cancer cases from data - 5 in number
 df[seq(2, length(colnames(df)))] <- sapply(df[seq(2, length(colnames(df)))], as.numeric) # Convert columns to numeric
 
+#Handling missing data
+# Step 1: Eliminate all genes which contain missing values for all samples
+df <- df[, colSums(is.na(df)) < nrow(df)]
+# Step 2: Impute values for all genes which contain partial missing values (using mean)
+# Note: This dataset doesn't require this step, as after step 1, all na values disappear. Method kept for completeness
+df <- if (sum(is.na(df)) > 0) mice(df, method = "mean") else df
+
