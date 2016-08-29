@@ -45,7 +45,7 @@ data2771 = data2771[-1, ]
 
 df <- as.data.frame(data2771)
 df <- subset(df, df[,1] != "3") # Remove suspected cancer cases from data - 5 in number
-df[seq(2, length(colnames(df)))] <- sapply(df[seq(2, length(colnames(df)))], as.numeric) # Convert columns to numeric
+df[1:dim(df)[2]] <- sapply(df[1:dim(df)[2]], as.numeric) # Convert columns to numeric
 
 #Handling missing data
 # Step 1: Eliminate all genes which contain missing values for all samples
@@ -59,12 +59,25 @@ SPLIT.PERCENTAGE = 0.75 # 75-25 training-to-testing ratio
 train.size = floor(nrow(df)*SPLIT.PERCENTAGE)
 set.seed(101) #to ensure reproducibility
 train.idx <- sample(nrow(df), size = train.size)
-train <- df[train.idx, ] #The training dataset
-test <- df[-train.idx, ] #The testing dataset
+train_x <- as.matrix(df[train.idx, -1]) #The training dataset features
+train_y <- df[train.idx, 1] #The training dataset annotation vector
+test_x <- as.matrix(df[-train.idx, -1]) #The testing dataset features
+test_y <- df[-train.idx, 1] #The testing dataset annotation vector
 
 
-#Experiment 1: Linear regression with Lasso
+#Error computation function
+get_error <- function(pred_y, test_y) {
+  perf <- rep(0, length(pred_y))
+  for (i in 1:length(pred_y)) { if(pred_y[i] == test_y[i]) perf[i] = 0 else perf[i] = 1 }
+  return(sum(perf)/length(perf))
+}
 
+#Experiment 1: Linear regression with Lasso with 10-fold cross-validation (mean-squared error)
+cvfit = cv.glmnet(x=train_x, y=train_y, nfolds=10, type.measure="mse")
+pred_y <- predict(cvfit, newx=test_x, s="lambda.min", type="class") #Choosing knee-point lambda value
+#Applying thresholding to the predicted values for comparison purposes (threshold - 1.5 for 2-class)
+pred_y <- lapply(pred_y, function(x) {if (x > 1.5) 2 else 1} )
+err_per1 <- get_error(pred_y, test_y)
 
 #Experiment 2: Linear regression with Ridge
 
@@ -75,5 +88,3 @@ test <- df[-train.idx, ] #The testing dataset
 #Experiment 5: Logistic regression with Ridge
 
 #Experiment 6: Choosing value of mixing parameter(alpha) of elasticnet using cross-validation
-
-#
