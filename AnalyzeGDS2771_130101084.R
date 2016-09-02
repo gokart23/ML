@@ -12,12 +12,13 @@
 
 library(Biobase)
 library(GEOquery)
-#library(caret)
 
 # Add other libraries that you might need below this line
 
 library(glmnet) #for models + regularization
 library(mice) #for data imputation
+#library(caret)
+#library(proc)
 
 # 2. Read data and convert to dataframe. Comment to save time after first run of the program in an R session
 # 2.1. Once download data from ftp://ftp.ncbi.nlm.nih.gov/geo/datasets/GDS2nnn/GDS2771/soft/GDS2771.soft.gz
@@ -46,7 +47,7 @@ data2771 = data2771[-1, ]
 
 df <- as.data.frame(data2771)
 df <- subset(df, df[,1] != "3") # Remove suspected cancer cases from data - 5 in number
-df[1:dim(df)[2]] <- sapply(df[1:dim(df)[2]], as.numeric) # Convert columns to numeric
+df <- as.data.frame(apply(df, 2, function(x) as.numeric(x))) # Convert columns to numeric
 
 #Handling missing data
 # Step 1: Eliminate all genes which contain missing values for all samples
@@ -73,32 +74,90 @@ get_error <- function(pred_y, test_y) {
 
 #Experiment 1: Linear regression with Lasso and 10-fold cross-validation (mean-squared error)
 #Note: All features normalized (standardized) before training, and rescaled before prediction
-  cvfit_e1 = cv.glmnet(x=train_x, y=train_y, nfolds=10, type.measure="mse", alpha=1, standardize=TRUE)
-  pred_y <- predict(cvfit_e1, newx=test_x, s="lambda.min", type="class") #Choosing knee-point lambda value
+  cvfit_e1 = cv.glmnet(x=train_x, y=train_y, nfolds=10, family="gaussian", type.measure="mse", alpha=1, standardize=TRUE)
+  pred_y <- predict(cvfit_e1, newx=test_x, s="lambda.min") #Choosing knee-point lambda value
 #   Applying thresholding to the predicted values for comparison purposes (threshold - 1.5 for 2-class)
   REGRESSION.THRESHOLD = 1.5
   pred_y <- lapply(pred_y, function(x) {if (x > REGRESSION.THRESHOLD) 2 else 1} )
 #   Deliverables
 #   1. Accuracy in terms of error rate
     err_per1 <- get_error(pred_y, test_y)
-#   1. Graph of cross-validation of lambda
+#   2. Graph of cross-validation of lambda and min lambda value
 #    plot(cvfit_e1)
-#   2. Number of non-zero coefficients
+#    cvfit_e1$lambda.min
+#   3. Number of non-zero coefficients
     coef_e1 <- abs(coef(cvfit_e1, s="lambda.min"))
     nz_idx <- which(coef_e1 != 0)
 #   length(nz_idx)
-#   3. Top 10 important genes
+#   4. Top 10 important genes
     nz_wt_sorted <- sort(coef_e1[nz_idx], decreasing = TRUE, index.return=TRUE)
     nz_genes_e1 <- rownames(coef_e1)[nz_idx][nz_wt_sorted$ix[nz_wt_sorted$ix != 1]] #Exclude the 'Intercept' field
 #   nz_genes_e1[1:10]
     
 
 #Experiment 2: Linear regression with Ridge 
-    
+#Note: All features normalized (standardized) before training, and rescaled before prediction
+  cvfit_e2 = cv.glmnet(x=train_x, y=train_y, nfolds=10, type.measure="mse", family="gaussian", alpha=0, standardize=TRUE)
+  pred_y <- predict(cvfit_e2, newx=test_x, s="lambda.min") #Choosing knee-point lambda value
+#   Applying thresholding to the predicted values for comparison purposes (threshold - 1.5 for 2-class)
+  REGRESSION.THRESHOLD = 1.5
+  pred_y <- lapply(pred_y, function(x) {if (x > REGRESSION.THRESHOLD) 2 else 1} )
+#   Deliverables
+#   1. Accuracy in terms of error rate
+    err_per2 <- get_error(pred_y, test_y)
+#   2. Graph of cross-validation of lambda and min lambda value
+#    plot(cvfit_e2)
+#    cvfit_e2$lambda.min
+#   3. Number of non-zero coefficients
+    coef_e2 <- abs(coef(cvfit_e2, s="lambda.min"))
+    nz_idx <- which(coef_e2 != 0)
+#   length(nz_idx)
+#   4. Top 10 important genes
+    nz_wt_sorted <- sort(coef_e2[nz_idx], decreasing = TRUE, index.return=TRUE)
+    nz_genes_e2 <- rownames(coef_e2)[nz_idx][nz_wt_sorted$ix[nz_wt_sorted$ix != 1]] #Exclude the 'Intercept' field
+#   nz_genes_e2[1:10]
+  
+  
 #Experiment 3: Choosing value of mixing parameter(alpha) of elasticnet using cross-validation
 
 #Experiment 4: Logistic regression with Lasso
+#Note: All features normalized (standardized) before training, and rescaled before prediction
+  cvfit_e3 = cv.glmnet(x=train_x, y=train_y, nfolds=10, family="binomial", type.measure="mse", alpha=1, standardize=TRUE)
+  pred_y <- predict(cvfit_e3, newx=test_x, s="lambda.min", type="class") #Choosing knee-point lambda value
+#   Deliverables
+#   1. Accuracy in terms of error rate
+    err_per3 <- get_error(pred_y, test_y)
+#   2. Graph of cross-validation of lambda and min lambda value
+#    plot(cvfit_e1)
+#    cvfit_e1$lambda.min
+#   3. Number of non-zero coefficients
+    coef_e3 <- abs(coef(cvfit_e3, s="lambda.min"))
+    nz_idx <- which(coef_e3 != 0)
+#   length(nz_idx)
+#   4. Top 10 important genes
+    nz_wt_sorted <- sort(coef_e3[nz_idx], decreasing = TRUE, index.return=TRUE)
+    nz_genes_e3 <- rownames(coef_e3)[nz_idx][nz_wt_sorted$ix[nz_wt_sorted$ix != 1]] #Exclude the 'Intercept' field
+#   nz_genes_e3[1:10]
+    
 
 #Experiment 5: Logistic regression with Ridge
+#Note: All features normalized (standardized) before training, and rescaled before prediction
+  cvfit_e4 = cv.glmnet(x=train_x, y=train_y, nfolds=10, family="binomial", type.measure="mse", alpha=0, standardize=TRUE)
+  pred_y <- predict(cvfit_e4, newx=test_x, s="lambda.min", type="class") #Choosing knee-point lambda value
+#   Deliverables
+#   1. Accuracy in terms of error rate
+    err_per3 <- get_error(pred_y, test_y)
+#   2. Graph of cross-validation of lambda and min lambda value
+#    plot(cvfit_e1)
+#    cvfit_e1$lambda.min
+#   3. Number of non-zero coefficients
+    coef_e3 <- abs(coef(cvfit_e3, s="lambda.min"))
+    nz_idx <- which(coef_e3 != 0)
+#   length(nz_idx)
+#   4. Top 10 important genes
+    nz_wt_sorted <- sort(coef_e3[nz_idx], decreasing = TRUE, index.return=TRUE)
+    nz_genes_e3 <- rownames(coef_e3)[nz_idx][nz_wt_sorted$ix[nz_wt_sorted$ix != 1]] #Exclude the 'Intercept' field
+#   nz_genes_e3[1:10]
+    
 
 #Experiment 6: Choosing value of mixing parameter(alpha) of elasticnet using cross-validation
