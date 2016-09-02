@@ -12,6 +12,7 @@
 
 library(Biobase)
 library(GEOquery)
+#library(caret)
 
 # Add other libraries that you might need below this line
 
@@ -67,20 +68,33 @@ test_y <- df[-train.idx, 1] #The testing dataset annotation vector
 
 #Error computation function
 get_error <- function(pred_y, test_y) {
-  perf <- rep(0, length(pred_y))
-  for (i in 1:length(pred_y)) { if(pred_y[i] == test_y[i]) perf[i] = 0 else perf[i] = 1 }
-  return(sum(perf)/length(perf))
+  return (mean(pred_y != test_y))
 }
 
-#Experiment 1: Linear regression with Lasso with 10-fold cross-validation (mean-squared error)
-cvfit = cv.glmnet(x=train_x, y=train_y, nfolds=10, type.measure="mse")
-pred_y <- predict(cvfit, newx=test_x, s="lambda.min", type="class") #Choosing knee-point lambda value
-#Applying thresholding to the predicted values for comparison purposes (threshold - 1.5 for 2-class)
-pred_y <- lapply(pred_y, function(x) {if (x > 1.5) 2 else 1} )
-err_per1 <- get_error(pred_y, test_y)
+#Experiment 1: Linear regression with Lasso and 10-fold cross-validation (mean-squared error)
+#Note: All features normalized (standardized) before training, and rescaled before prediction
+  cvfit_e1 = cv.glmnet(x=train_x, y=train_y, nfolds=10, type.measure="mse", alpha=1, standardize=TRUE)
+  pred_y <- predict(cvfit_e1, newx=test_x, s="lambda.min", type="class") #Choosing knee-point lambda value
+#   Applying thresholding to the predicted values for comparison purposes (threshold - 1.5 for 2-class)
+  REGRESSION.THRESHOLD = 1.5
+  pred_y <- lapply(pred_y, function(x) {if (x > REGRESSION.THRESHOLD) 2 else 1} )
+#   Deliverables
+#   1. Accuracy in terms of error rate
+    err_per1 <- get_error(pred_y, test_y)
+#   1. Graph of cross-validation of lambda
+#    plot(cvfit_e1)
+#   2. Number of non-zero coefficients
+    coef_e1 <- abs(coef(cvfit_e1, s="lambda.min"))
+    nz_idx <- which(coef_e1 != 0)
+#   length(nz_idx)
+#   3. Top 10 important genes
+    nz_wt_sorted <- sort(coef_e1[nz_idx], decreasing = TRUE, index.return=TRUE)
+    nz_genes_e1 <- rownames(coef_e1)[nz_idx][nz_wt_sorted$ix[nz_wt_sorted$ix != 1]] #Exclude the 'Intercept' field
+#   nz_genes_e1[1:10]
+    
 
-#Experiment 2: Linear regression with Ridge
-
+#Experiment 2: Linear regression with Ridge 
+    
 #Experiment 3: Choosing value of mixing parameter(alpha) of elasticnet using cross-validation
 
 #Experiment 4: Logistic regression with Lasso
