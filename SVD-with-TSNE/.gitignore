@@ -1,0 +1,4 @@
+*.npz
+*.pkl
+*.txt
+.ipynb_checkpoints/
